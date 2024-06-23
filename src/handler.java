@@ -1,7 +1,9 @@
+import javax.imageio.ImageIO;
 import javax.swing.JPanel;
 import javax.swing.Timer;
 import javax.swing.event.ListSelectionEvent;
 
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
@@ -12,6 +14,7 @@ import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
 import java.net.*;
 
 public class handler extends JPanel
@@ -22,32 +25,29 @@ public class handler extends JPanel
     private final Timer timer;
     private final InetAddress ip;
     private Thread sendMouse, receiveImage;
-    private int x, y, lport;
+    private int x, y, mx, my;
     private boolean isStart, isEnter;
 
-    private boolean sendMessage(InetAddress ip, int port, String msg) {
+    private void sendMessage(InetAddress ip, String msg) {
         try (
                 DatagramSocket d = new DatagramSocket();
                 ) {
 
             d.send(new DatagramPacket(msg.getBytes(), 0, msg.length(),
-                    ip, port));
+                    ip, 3330));
 
-            return true;
         } catch (Exception e) {
-            return false;
         }
     }
 
     public handler(InetAddress ip, int lport) {
         this.ip = ip;
-        this.lport= lport;
         isStart = false;
         isEnter = false;
 
         timer = new Timer(50, this);
         sendMouse = new Thread(new SendMouse());
-        receiveImage = new Thread();
+        receiveImage = new Thread(new ReceiveImage());
     }
 
     public void startHandle() {
@@ -56,9 +56,20 @@ public class handler extends JPanel
         this.addMouseWheelListener(this);
         this.addKeyListener(this);
 
+        isStart = true;
         timer.start();
         sendMouse.start();
         receiveImage.start();
+    }
+
+    public void stopHandle() {
+        this.removeMouseListener(this);
+        this.removeMouseMotionListener(this);
+        this.removeMouseWheelListener(this);
+        this.removeKeyListener(this);
+
+        isStart = false;
+        isEnter = false;
     }
 
     @Override
@@ -68,22 +79,22 @@ public class handler extends JPanel
 
     @Override
     public void mousePressed(MouseEvent e) {
-
+        if (isStart) sendMessage(ip, "MOUSEDOWN\n" + e.getButton());
     }
 
     @Override
     public void mouseReleased(MouseEvent e) {
-
+        if (isStart) sendMessage(ip, "MOUSEUP\n" + e.getButton());
     }
 
     @Override
     public void mouseEntered(MouseEvent e) {
-
+        isEnter = true;
     }
 
     @Override
     public void mouseExited(MouseEvent e) {
-
+        isEnter = false;
     }
 
     @Override
@@ -93,17 +104,18 @@ public class handler extends JPanel
 
     @Override
     public void mouseMoved(MouseEvent e) {
-
+        x = e.getX();
+        y = e.getY();
     }
 
     @Override
     public void mouseWheelMoved(MouseWheelEvent e) {
-
+        if (isStart) sendMessage(ip, "MOUSEWHEEL\n" + e.getWheelRotation());
     }
 
     @Override
     public void actionPerformed(ActionEvent e) {
-
+        this.repaint();
     }
 
     @Override
@@ -113,27 +125,41 @@ public class handler extends JPanel
 
     @Override
     public void keyPressed(KeyEvent e) {
-
+        if (isStart) sendMessage(ip, "KEYDOWN\n" + e.getKeyCode());
     }
 
     @Override
     public void keyReleased(KeyEvent e) {
+        if (isStart) sendMessage(ip, "KEYUP\n" + e.getKeyCode());
+    }
 
+    @Override
+    public void paint(Graphics g) {
+        g.drawImage(image, 0, 0, this.getWidth(), this.getHeight(), null);
+
+        g.setColor(Color.YELLOW);
+        g.fillOval(mx - 3, my - 3, mx + 3, my + 3);
     }
 
     private class ReceiveImage implements Runnable {
         @Override
         public void run() {
-            while (true) try (MulticastSocket ms = new MulticastSocket(3332)) {
+            try (MulticastSocket ms = new MulticastSocket(3332)) {
                 byte[] b = new byte[102400];
                 DatagramPacket p = new DatagramPacket(b, 0, b.length);
                 ms.joinGroup(InetAddress.getByName("224.3.2." + ip.getHostAddress().substring(
                         ip.getHostAddress().lastIndexOf("."))));
 
-                while (true) if (isStart) {
+                while (isStart) {
                     ms.receive(p);
+                    String[] msg = new String(p.getData(), 0, p.getLength()).split("\n");
 
+                    ByteArrayInputStream in = new ByteArrayInputStream(msg[0].getBytes());
+                    image = ImageIO.read(in);
+                    in.close();
 
+                    mx = Integer.parseInt(msg[1]);
+                    my = Integer.parseInt(msg[2]);
                 }
 
             } catch (Exception e) {
@@ -144,15 +170,14 @@ public class handler extends JPanel
     private class SendMouse implements Runnable {
         @Override
         public void run() {
-            while (true) try {
+            while (isStart) if (isEnter) {
+                String msg = "MOUSEMOVE\n" + x + "\n" + y;
+                sendMessage(ip, msg);
 
-                while (true) if (isStart && isEnter) {
-                    String msg = "MOUSEMOVE\n" + x + "\n" + y;
-
-                    sendMessage(ip, 3330, msg);
+                try {
+                    Thread.sleep(50);
+                } catch (InterruptedException e) {
                 }
-
-            } catch (Exception e) {
             }
         }
     }
