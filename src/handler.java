@@ -1,7 +1,6 @@
 import javax.imageio.ImageIO;
 import javax.swing.JPanel;
 import javax.swing.Timer;
-import javax.swing.event.ListSelectionEvent;
 
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -24,7 +23,7 @@ public class handler extends JPanel
     private BufferedImage image;
     private final Timer timer;
     private final InetAddress ip;
-    private Thread sendMouse, receiveImage;
+    private final Thread sendMouse, receiveImage;
     private int x, y, mx, my;
     private boolean isStart, isEnter;
 
