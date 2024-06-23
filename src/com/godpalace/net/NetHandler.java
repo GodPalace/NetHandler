@@ -1,3 +1,5 @@
+package com.godpalace.net;
+
 import javax.imageio.ImageIO;
 import javax.swing.JPanel;
 import javax.swing.Timer;
@@ -16,7 +18,7 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.net.*;
 
-public class handler extends JPanel
+public class NetHandler extends JPanel
         implements MouseListener , MouseMotionListener , MouseWheelListener ,
         ActionListener , KeyListener {
 
@@ -36,10 +38,11 @@ public class handler extends JPanel
                     ip, 3330));
 
         } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
-    public handler(InetAddress ip, int lport) {
+    public NetHandler(InetAddress ip) {
         this.ip = ip;
         isStart = false;
         isEnter = false;
@@ -59,6 +62,8 @@ public class handler extends JPanel
         timer.start();
         sendMouse.start();
         receiveImage.start();
+
+        sendMessage(ip, "STARTHANDLE");
     }
 
     public void stopHandle() {
@@ -69,6 +74,8 @@ public class handler extends JPanel
 
         isStart = false;
         isEnter = false;
+
+        sendMessage(ip, "STOPHANDLE");
     }
 
     @Override
@@ -146,7 +153,7 @@ public class handler extends JPanel
             try (MulticastSocket ms = new MulticastSocket(3332)) {
                 byte[] b = new byte[102400];
                 DatagramPacket p = new DatagramPacket(b, 0, b.length);
-                ms.joinGroup(InetAddress.getByName("224.3.2." + ip.getHostAddress().substring(
+                ms.joinGroup(InetAddress.getByName("224.3.2" + ip.getHostAddress().substring(
                         ip.getHostAddress().lastIndexOf("."))));
 
                 while (isStart) {
@@ -162,6 +169,7 @@ public class handler extends JPanel
                 }
 
             } catch (Exception e) {
+                e.printStackTrace();
             }
         }
     }
@@ -176,6 +184,7 @@ public class handler extends JPanel
                 try {
                     Thread.sleep(50);
                 } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             }
         }
