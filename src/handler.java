@@ -1,5 +1,6 @@
 import javax.swing.JPanel;
 import javax.swing.Timer;
+import javax.swing.event.ListSelectionEvent;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -11,9 +12,7 @@ import java.awt.event.MouseMotionListener;
 import java.awt.event.MouseWheelEvent;
 import java.awt.event.MouseWheelListener;
 import java.awt.image.BufferedImage;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
+import java.net.*;
 
 public class handler extends JPanel
         implements MouseListener , MouseMotionListener , MouseWheelListener ,
@@ -47,7 +46,19 @@ public class handler extends JPanel
         isEnter = false;
 
         timer = new Timer(50, this);
+        sendMouse = new Thread(new SendMouse());
+        receiveImage = new Thread();
+    }
 
+    public void startHandle() {
+        this.addMouseListener(this);
+        this.addMouseMotionListener(this);
+        this.addMouseWheelListener(this);
+        this.addKeyListener(this);
+
+        timer.start();
+        sendMouse.start();
+        receiveImage.start();
     }
 
     @Override
@@ -110,10 +121,39 @@ public class handler extends JPanel
 
     }
 
+    private class ReceiveImage implements Runnable {
+        @Override
+        public void run() {
+            while (true) try (MulticastSocket ms = new MulticastSocket(3332)) {
+                byte[] b = new byte[102400];
+                DatagramPacket p = new DatagramPacket(b, 0, b.length);
+                ms.joinGroup(InetAddress.getByName("224.3.2." + ip.getHostAddress().substring(
+                        ip.getHostAddress().lastIndexOf("."))));
+
+                while (true) if (isStart) {
+                    ms.receive(p);
+
+
+                }
+
+            } catch (Exception e) {
+            }
+        }
+    }
+
     private class SendMouse implements Runnable {
         @Override
         public void run() {
+            while (true) try {
 
+                while (true) if (isStart && isEnter) {
+                    String msg = "MOUSEMOVE\n" + x + "\n" + y;
+
+                    sendMessage(ip, 3330, msg);
+                }
+
+            } catch (Exception e) {
+            }
         }
     }
 }
